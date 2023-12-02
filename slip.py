@@ -81,7 +81,12 @@ class Enlace:
             elif self.estado == ESTADO_LENDO:
                 if byte == b'\xC0':
                     if len(self.buffer) > 0: # Ignorando quadros vazios
-                        self.callback(self.buffer)
+                        try:
+                            self.callback(self.buffer)
+                        except:
+                            # ignora a exceção, mas mostra na tela
+                            import traceback
+                            traceback.print_exc()
 
                     self.buffer = b''
                     self.estado = ESTADO_OCIOSO
@@ -96,4 +101,3 @@ class Enlace:
                     self.buffer = self.buffer + b'\xDB'
 
                 self.estado = ESTADO_LENDO
-
