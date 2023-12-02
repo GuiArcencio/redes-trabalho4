@@ -38,11 +38,15 @@ class CamadaEnlace:
         if self.callback:
             self.callback(datagrama)
 
+ESTADO_OCIOSO = 0
+ESTADO_LENDO = 1
 
 class Enlace:
     def __init__(self, linha_serial):
         self.linha_serial = linha_serial
         self.linha_serial.registrar_recebedor(self.__raw_recv)
+        self.buffer = b''
+        self.estado = ESTADO_OCIOSO
 
     def registrar_recebedor(self, callback):
         self.callback = callback
@@ -63,11 +67,20 @@ class Enlace:
         self.linha_serial.enviar(quadro)
 
     def __raw_recv(self, dados):
-        # TODO: Preencha aqui com o código para receber dados da linha serial.
-        # Trate corretamente as sequências de escape. Quando ler um quadro
-        # completo, repasse o datagrama contido nesse quadro para a camada
-        # superior chamando self.callback. Cuidado pois o argumento dados pode
-        # vir quebrado de várias formas diferentes - por exemplo, podem vir
-        # apenas pedaços de um quadro, ou um pedaço de quadro seguido de um
-        # pedaço de outro, ou vários quadros de uma vez só.
-        pass
+        for byte in dados:
+            byte = byte.to_bytes(1, 'big', signed=False)
+            if self.estado == ESTADO_OCIOSO:
+                if byte != b'\xC0':
+                    self.buffer = self.buffer + byte
+
+                self.estado = ESTADO_LENDO
+            elif self.estado == ESTADO_LENDO:
+                if byte == b'\xC0':
+                    if len(self.buffer) > 0:
+                        self.callback(self.buffer)
+
+                    self.buffer = b''
+                    self.estado = ESTADO_OCIOSO
+                else:
+                    self.buffer = self.buffer + byte
+
