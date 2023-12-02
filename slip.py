@@ -40,6 +40,7 @@ class CamadaEnlace:
 
 ESTADO_OCIOSO = 0
 ESTADO_LENDO = 1
+ESTADO_ESCAPE = 2
 
 class Enlace:
     def __init__(self, linha_serial):
@@ -70,17 +71,29 @@ class Enlace:
         for byte in dados:
             byte = byte.to_bytes(1, 'big', signed=False)
             if self.estado == ESTADO_OCIOSO:
-                if byte != b'\xC0':
+                if byte == b'\xDB':
+                    self.estado = ESTADO_ESCAPE
+                elif byte == b'\xC0':
+                    self.estado = ESTADO_LENDO
+                else:
                     self.buffer = self.buffer + byte
-
-                self.estado = ESTADO_LENDO
+                    self.estado = ESTADO_LENDO
             elif self.estado == ESTADO_LENDO:
                 if byte == b'\xC0':
-                    if len(self.buffer) > 0:
+                    if len(self.buffer) > 0: # Ignorando quadros vazios
                         self.callback(self.buffer)
 
                     self.buffer = b''
                     self.estado = ESTADO_OCIOSO
+                elif byte == b'\xDB':
+                    self.estado = ESTADO_ESCAPE
                 else:
                     self.buffer = self.buffer + byte
+            elif self.estado == ESTADO_ESCAPE:
+                if byte == b'\xDC':
+                    self.buffer = self.buffer + b'\xC0'
+                elif byte == b'\xDD':
+                    self.buffer = self.buffer + b'\xDB'
+
+                self.estado = ESTADO_LENDO
 
